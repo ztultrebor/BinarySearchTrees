@@ -25,6 +25,7 @@
 ;; constants
 
 (define BST1 (make-bst 1 "m" false false))
+(define BST2 (make-bst 2 "x" false false))
 (define BST3 (make-bst 3 "w" false false))
 (define BST4 (make-bst 4 "k" false false))
 (define BST5 (make-bst 5 "g" false false))
@@ -33,22 +34,52 @@
 
 
 ; functions
-(define (add-to-tree branch tree)
-  ; BST BST -> BST
-  ; add a new branch to an ecisting tree
+
+
+(define (lookup key tree)
+  ; Natural BST -> Any
+  ; search a BST  for the provided key and return the
+  ; corresponding value if it's there; else #false
   (cond
-    [(false? tree) branch]
+    [(false? tree) #f]
+    [(= key (bst-key tree)) (bst-val tree)]
+    [(< key (bst-key tree)) (lookup key (bst-lbranch tree))]
+    [(> key (bst-key tree)) (lookup key (bst-rbranch tree))]))
+; checks
+(check-expect (lookup 2
+                      (add-to-tree
+                       BST7
+                       (add-to-tree
+                        BST5
+                        (add-to-tree
+                         BST4
+                         (add-to-tree BST3 (add-to-tree BST1 BST2)))))) "x")
+(check-expect (lookup 6
+                      (add-to-tree
+                       BST7
+                       (add-to-tree
+                        BST5
+                        (add-to-tree
+                         BST4
+                         (add-to-tree BST3 (add-to-tree BST1 BST2)))))) #f)
+  
+(define (add-to-tree node tree)
+  ; BST BST -> BST
+  ; add a new node to an existing tree. Must be a stand-alone node, not a tree
+  (cond
+    [(false? tree) node]
     [else (cond
-            [(< (bst-key branch) (bst-key tree))
+            [(< (bst-key node) (bst-key tree))
              (make-bst
               (bst-key tree) (bst-val tree)
-              (add-to-tree branch (bst-lbranch tree)) (bst-rbranch tree))]
-            [(> (bst-key branch) (bst-key tree))
+              (add-to-tree node (bst-lbranch tree)) (bst-rbranch tree))]
+            [(> (bst-key node) (bst-key tree))
              (make-bst
               (bst-key tree) (bst-val tree) (bst-lbranch tree)
-              (add-to-tree branch (bst-rbranch tree)))]
-            [(= (bst-key branch) (bst-key tree)) tree])]))
+              (add-to-tree node (bst-rbranch tree)))]
+            [(= (bst-key node) (bst-key tree)) tree])]))
 ; checks
+(check-expect (add-to-tree BST1 #f) BST1)
 (check-expect (add-to-tree BST4 BST1) (make-bst 1 "m" false BST4))
 (check-expect (add-to-tree BST7 (add-to-tree BST4 BST1))
               (make-bst 1 "m" false (make-bst 4 "k" false BST7)))
@@ -60,16 +91,18 @@
   (cond
     [(> (- (count-nodes (bst-lbranch tree))
            (count-nodes (bst-rbranch tree))) 1)
-     (purge-duplicates (add-to-tree (make-bst (bst-key tree) (bst-val tree)
-                                              #f (bst-rbranch tree))
-                                    (add-to-tree (bst-lbranch tree)
-                                                 (rightmost (bst-lbranch tree)))))]
+     (purge-duplicates (add-to-tree
+                        (make-bst (bst-key tree) (bst-val tree)
+                                  #f (bst-rbranch tree))
+                        (add-to-tree (bst-lbranch tree)
+                                     (rightmost (bst-lbranch tree)))))]
     [(> (- (count-nodes (bst-rbranch tree))
            (count-nodes (bst-lbranch tree))) 1)
-     (purge-duplicates (add-to-tree (make-bst (bst-key tree) (bst-val tree)
-                                              (bst-lbranch tree) #f)
-                                    (add-to-tree (bst-rbranch tree)
-                                                 (leftmost (bst-rbranch tree)))))]
+     (purge-duplicates (add-to-tree
+                        (make-bst (bst-key tree) (bst-val tree)
+                                  (bst-lbranch tree) #f)
+                        (add-to-tree (bst-rbranch tree)
+                                     (leftmost (bst-rbranch tree)))))]
     [else tree]))
 (check-expect (rebalance (add-to-tree BST7 (add-to-tree BST4 BST1)))
               (make-bst 4 "k" (make-bst 1 "m"  #f #f) (make-bst 7 "p" #f #f)))
@@ -112,32 +145,32 @@
   ; BST BST -> BST
   ; eliminate any duplicates of the root node of tree
   (make-bst (bst-key tree) (bst-val tree)
-            (purge (bst-lbranch tree) (bst-key tree))
-            (purge (bst-rbranch tree) (bst-key tree))))
+            (purge (bst-key tree) (bst-lbranch tree))
+            (purge (bst-key tree) (bst-rbranch tree))))
 
 
-(define (purge tree n)
-  ; BST Number -> BST
-  ; delete node from tree
+(define (purge key tree)
+  ; Natural BST -> BST
+  ; delete node with given key from tree
   (cond
     [(false? tree) #f]
-    [(= (bst-key tree) n)
+    [(= (bst-key tree) key)
      (cond
        [(false? (bst-lbranch tree)) (bst-rbranch tree)]
        [(false? (bst-rbranch tree)) (bst-lbranch tree)]
        [else tree])]
-    [(< n (bst-key tree))
+    [(< key (bst-key tree))
      (make-bst (bst-key tree) (bst-val tree)
-               (purge (bst-lbranch tree) n) (bst-rbranch tree))]
-    [(> n (bst-key tree))
+               (purge key (bst-lbranch tree)) (bst-rbranch tree))]
+    [(> key (bst-key tree))
      (make-bst (bst-key tree) (bst-val tree)
-               (bst-lbranch tree) (purge (bst-rbranch tree) n))]))
+               (bst-lbranch tree) (purge key (bst-rbranch tree)))]))
 ; checks
-(check-expect (purge BST1 1) #f)
-(check-expect (purge (add-to-tree BST1 BST3) 1) BST3)
-(check-expect (purge (add-to-tree BST3 BST1) 1) BST3)
-(check-expect (purge
-               (add-to-tree (add-to-tree BST4 (add-to-tree BST1 BST3))
-                            (add-to-tree BST7 BST5)) 1)
+(check-expect (purge 1 BST1) #f)
+(check-expect (purge 1 (add-to-tree BST1 BST3)) BST3)
+(check-expect (purge 1 (add-to-tree BST3 BST1)) BST3)
+(check-expect (purge 1
+                     (add-to-tree (add-to-tree BST4 (add-to-tree BST1 BST3))
+                                  (add-to-tree BST7 BST5)))
               (add-to-tree BST7 (add-to-tree BST4
                                              (add-to-tree BST3 BST5))))
